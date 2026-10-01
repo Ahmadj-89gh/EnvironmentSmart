@@ -39,8 +39,11 @@ jobs:
             exit 1
           fi
 
+          echo "ملف المشروع: $ZIP_FILE"
+
           rm -rf build-src
           mkdir -p build-src
+
           unzip -q "$ZIP_FILE" -d build-src
 
       - name: العثور على مشروع Android
@@ -53,31 +56,9 @@ jobs:
           fi
 
           PROJECT_DIR=$(dirname "$SETTINGS")
+
+          echo "مجلد المشروع: $PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-
-      - name: إضافة مكتبة الخريطة
-        run: |
-          APP_GRADLE="$PROJECT_DIR/app/build.gradle"
-
-          if ! grep -q "osmdroid-android" "$APP_GRADLE"; then
-            sed -i '/dependencies {/a\    implementation '\''org.osmdroid:osmdroid-android:6.1.20'\''' "$APP_GRADLE"
-          fi
-
-      - name: إضافة صلاحيات الخريطة
-        run: |
-          MANIFEST="$PROJECT_DIR/app/src/main/AndroidManifest.xml"
-
-          if ! grep -q "android.permission.INTERNET" "$MANIFEST"; then
-            sed -i '/<application/i\    <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST"
-          fi
-
-          if ! grep -q "android.permission.ACCESS_FINE_LOCATION" "$MANIFEST"; then
-            sed -i '/<application/i\    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' "$MANIFEST"
-          fi
-
-          if ! grep -q "android.permission.ACCESS_COARSE_LOCATION" "$MANIFEST"; then
-            sed -i '/<application/i\    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' "$MANIFEST"
-          fi
 
       - name: إعداد Gradle
         uses: gradle/actions/setup-gradle@v4
