@@ -39,11 +39,8 @@ jobs:
             exit 1
           fi
 
-          echo "ملف المشروع: $ZIP_FILE"
-
           rm -rf build-src
           mkdir -p build-src
-
           unzip -q "$ZIP_FILE" -d build-src
 
       - name: العثور على مشروع Android
@@ -56,9 +53,502 @@ jobs:
           fi
 
           PROJECT_DIR=$(dirname "$SETTINGS")
-
-          echo "مجلد المشروع: $PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: إضافة مكتبة الخريطة
+        run: |
+          APP_GRADLE="$PROJECT_DIR/app/build.gradle"
+
+          if ! grep -q "osmdroid-android" "$APP_GRADLE"; then
+            cat >> "$APP_GRADLE" <<'EOF'
+
+dependencies {
+    implementation 'org.osmdroid:osmdroid-android:6.1.20'
+}
+EOF
+          fi
+
+      - name: إضافة صلاحيات الخريطة والموقع
+        run: |
+          cat > "$PROJECT_DIR/app/src/main/AndroidManifest.xml" <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <application
+        android:theme="@style/AppTheme"
+        android:label="البيئة الذكية"
+        android:allowBackup="true"
+        android:supportsRtl="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:screenOrientation="portrait"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+    </application>
+
+</manifest>
+EOF
+
+      - name: إضافة الخريطة التفاعلية
+        run: |
+          MAIN="$PROJECT_DIR/app/src/main/java/com/environment/smart/MainActivity.java"
+
+          cat > "$MAIN" <<'EOF'
+package com.environment.smart;
+
+import android.Manifest;
+import android.app.Activity;
+import android.os.Bundle;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.*;
+
+import org.osmdroid.config.Configuration;
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
+import org.osmdroid.util.GeoPoint;
+import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.Marker;
+import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
+import org.osmdroid.events.MapEventsReceiver;
+import org.osmdroid.views.overlay.MapEventsOverlay;
+
+public class MainActivity extends Activity {
+
+    LinearLayout root;
+    LinearLayout content;
+
+    final int GREEN = Color.rgb(11, 61, 46);
+    MapView map;
+    MyLocationNewOverlay locationOverlay;
+
+    @Override
+    public void onCreate(Bundle b) {
+        super.onCreate(b);
+
+        Configuration.getInstance().setUserAgentValue(
+                getPackageName()
+        );
+
+        showLogin();
+    }
+
+    TextView tv(String s, float z) {
+        TextView t = new TextView(this);
+        t.setText(s);
+        t.setTextSize(z);
+        t.setTextColor(Color.DKGRAY);
+        t.setPadding(24, 18, 24, 18);
+        t.setGravity(Gravity.CENTER);
+        return t;
+    }
+
+    Button btn(String s) {
+        Button b = new Button(this);
+        b.setText(s);
+        b.setTextSize(16);
+        b.setAllCaps(false);
+        return b;
+    }
+
+    GradientDrawable bg(int c, float r) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(c);
+        g.setCornerRadius(r);
+        return g;
+    }
+
+    void base() {
+        root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(24, 24, 24, 24);
+        root.setBackgroundColor(Color.WHITE);
+        setContentView(root);
+    }
+
+    void showLogin() {
+        base();
+
+        TextView title = tv("🌿 البيئة الذكية", 30);
+        title.setTextColor(GREEN);
+
+        root.addView(
+                title,
+                new LinearLayout.LayoutParams(-1, 0, 1)
+        );
+
+        root.addView(
+                tv("نظام رقمي لإدارة أعمال مديرية البيئة", 18)
+        );
+
+        EditText u = new EditText(this);
+        u.setHint("اسم المستخدم");
+
+        EditText p = new EditText(this);
+        p.setHint("كلمة المرور");
+        p.setInputType(129);
+
+        root.addView(u);
+        root.addView(p);
+
+        Button l = btn("دخول");
+
+        root.addView(
+                l,
+                new LinearLayout.LayoutParams(-1, 60)
+        );
+
+        root.addView(tv("نسخة أولية تجريبية", 13));
+
+        l.setOnClickListener(v -> {
+
+            boolean ok =
+                    (u.getText().toString().trim().equals("admin")
+                    && p.getText().toString().equals("admin123"))
+                    ||
+                    (u.getText().toString().trim().equals("أحمد")
+                    && p.getText().toString().equals("1234"));
+
+            if (ok) {
+                showDashboard();
+            } else {
+                Toast.makeText(
+                        this,
+                        "بيانات الدخول: admin / admin123",
+                        Toast.LENGTH_LONG
+                ).show();
+            }
+        });
+    }
+
+    void showDashboard() {
+        base();
+
+        TextView h = tv(
+                "🌿 البيئة الذكية\nلوحة الإدارة البيئية",
+                24
+        );
+
+        h.setTextColor(Color.WHITE);
+        h.setBackground(bg(GREEN, 28));
+
+        root.addView(
+                h,
+                new LinearLayout.LayoutParams(-1, 130)
+        );
+
+        content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+
+        ScrollView sv = new ScrollView(this);
+        sv.addView(content);
+
+        root.addView(
+                sv,
+                new LinearLayout.LayoutParams(-1, 0, 1)
+        );
+
+        addCard(
+                "🗺️ الخريطة البيئية",
+                "خريطة تفاعلية للمواقع والمنشآت والبلاغات",
+                v -> showMap()
+        );
+
+        addCard(
+                "🚨 البلاغات البيئية",
+                "إدارة الشكاوى والبلاغات",
+                v -> message(
+                        "البلاغات",
+                        "سيتم بناء هذه الوحدة في المرحلة التالية."
+                )
+        );
+
+        addCard(
+                "👷 المهام الميدانية",
+                "توزيع ومتابعة أعمال فرق التفتيش",
+                v -> message(
+                        "المهام",
+                        "سيتم بناء هذه الوحدة في المرحلة التالية."
+                )
+        );
+
+        addCard(
+                "🏭 المنشآت",
+                "الملفات البيئية للمنشآت",
+                v -> message(
+                        "المنشآت",
+                        "سيتم بناء هذه الوحدة في المرحلة التالية."
+                )
+        );
+
+        addCard(
+                "📄 التراخيص",
+                "التراخيص والموافقات البيئية",
+                v -> message(
+                        "التراخيص",
+                        "سيتم بناء هذه الوحدة في المرحلة التالية."
+                )
+        );
+
+        addCard(
+                "🗑️ النفايات",
+                "متابعة المكبات والجمع والمعالجة",
+                v -> message(
+                        "النفايات",
+                        "سيتم بناء هذه الوحدة في المرحلة التالية."
+                )
+        );
+
+        addCard(
+                "📊 التقارير",
+                "الإحصائيات ومؤشرات الأداء",
+                v -> message(
+                        "التقارير",
+                        "سيتم بناء هذه الوحدة في المرحلة التالية."
+                )
+        );
+
+        Button out = btn("تسجيل الخروج");
+
+        root.addView(
+                out,
+                new LinearLayout.LayoutParams(-1, 60)
+        );
+
+        out.setOnClickListener(v -> showLogin());
+    }
+
+    void addCard(
+            String a,
+            String b,
+            View.OnClickListener l
+    ) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(12, 8, 12, 8);
+        box.setBackground(
+                bg(Color.rgb(238, 247, 240), 22)
+        );
+
+        TextView x = tv(a, 19);
+        x.setTextColor(GREEN);
+
+        box.addView(x);
+        box.addView(tv(b, 14));
+
+        LinearLayout.LayoutParams lp =
+                new LinearLayout.LayoutParams(-1, 105);
+
+        lp.setMargins(0, 10, 0, 0);
+
+        content.addView(box, lp);
+
+        box.setOnClickListener(l);
+    }
+
+    void message(String t, String m) {
+        new AlertDialog.Builder(this)
+                .setTitle(t)
+                .setMessage(m)
+                .setPositiveButton("حسناً", null)
+                .show();
+    }
+
+    void showMap() {
+
+        Configuration.getInstance()
+                .load(
+                        getApplicationContext(),
+                        getPreferences(0)
+                );
+
+        base();
+
+        TextView h = tv(
+                "🗺️ الخريطة البيئية",
+                22
+        );
+
+        h.setTextColor(GREEN);
+
+        root.addView(h);
+
+        LinearLayout.LayoutParams mapParams =
+                new LinearLayout.LayoutParams(
+                        -1,
+                        0,
+                        1
+                );
+
+        map = new MapView(this);
+
+        map.setTileSource(
+                TileSourceFactory.MAPNIK
+        );
+
+        map.setMultiTouchControls(true);
+
+        map.getController().setZoom(6.0);
+
+        map.getController().setCenter(
+                new GeoPoint(35.0, 38.5)
+        );
+
+        root.addView(map, mapParams);
+
+        Button gps = btn("📍 موقعي الحالي");
+
+        Button add = btn("➕ إضافة موقع على الخريطة");
+
+        Button back = btn("العودة إلى لوحة الإدارة");
+
+        root.addView(gps);
+        root.addView(add);
+        root.addView(back);
+
+        gps.setOnClickListener(v -> enableGPS());
+
+        add.setOnClickListener(v -> {
+
+            Toast.makeText(
+                    this,
+                    "اضغط مطولاً على أي مكان في الخريطة لإضافة موقع",
+                    Toast.LENGTH_LONG
+            ).show();
+        });
+
+        back.setOnClickListener(v -> showDashboard());
+
+        MapEventsReceiver receiver =
+                new MapEventsReceiver() {
+
+                    @Override
+                    public boolean singleTapConfirmedHelper(
+                            GeoPoint p
+                    ) {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean longPressHelper(
+                            GeoPoint p
+                    ) {
+
+                        addMarker(
+                                p.getLatitude(),
+                                p.getLongitude()
+                        );
+
+                        return true;
+                    }
+                };
+
+        map.getOverlays().add(
+                new MapEventsOverlay(receiver)
+        );
+    }
+
+    void addMarker(
+            double lat,
+            double lon
+    ) {
+
+        Marker marker = new Marker(map);
+
+        marker.setPosition(
+                new GeoPoint(lat, lon)
+        );
+
+        marker.setTitle("موقع بيئي");
+
+        marker.setSnippet(
+                "خط العرض: " +
+                String.format("%.6f", lat) +
+                "\nخط الطول: " +
+                String.format("%.6f", lon)
+        );
+
+        map.getOverlays().add(marker);
+
+        map.invalidate();
+
+        Toast.makeText(
+                this,
+                "تمت إضافة الموقع على الخريطة",
+                Toast.LENGTH_SHORT
+        ).show();
+    }
+
+    void enableGPS() {
+
+        if (checkSelfPermission(
+                Manifest.permission.ACCESS_FINE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED) {
+
+            requestPermissions(
+                    new String[]{
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                    },
+                    100
+            );
+
+            return;
+        }
+
+        locationOverlay =
+                new MyLocationNewOverlay(
+                        map
+                );
+
+        locationOverlay.enableMyLocation();
+        locationOverlay.enableFollowLocation();
+
+        map.getOverlays().add(locationOverlay);
+
+        map.invalidate();
+
+        Toast.makeText(
+                this,
+                "تم تشغيل تحديد الموقع",
+                Toast.LENGTH_SHORT
+        ).show();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (map != null) {
+            map.onResume();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        if (map != null) {
+            map.onPause();
+        }
+    }
+}
+EOF
 
       - name: إعداد Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -73,6 +563,6 @@ jobs:
       - name: رفع APK
         uses: actions/upload-artifact@v4
         with:
-          name: EnvironmentSmart-APK
+          name: EnvironmentSmart-Interactive-Map-APK
           path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
