@@ -35,43 +35,39 @@ jobs:
         run: |
           set -e
 
-          echo "Searching for EnvironmentSmart_Map_Ready.zip..."
-
-          ZIP_FILE=$(find . -maxdepth 1 -type f -name 'EnvironmentSmart_Map_Ready.zip' | head -n 1)
-
-          if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: EnvironmentSmart_Map_Ready.zip was not found."
+          if [ -f "EnvironmentSmart_Map_Ready.zip" ]; then
+            ZIP_FILE="EnvironmentSmart_Map_Ready.zip"
+          elif [ -f "EnvironmentSmart_v1_APK_Project.zip" ]; then
+            ZIP_FILE="EnvironmentSmart_v1_APK_Project.zip"
+          else
+            echo "ERROR: Project ZIP file not found."
             echo "Files in repository:"
             ls -la
             exit 1
           fi
 
-          echo "Found project ZIP:"
-          echo "$ZIP_FILE"
+          echo "Using project: $ZIP_FILE"
 
           rm -rf build-src
           mkdir -p build-src
 
           unzip -q "$ZIP_FILE" -d build-src
 
-          echo "Project extracted successfully."
-
       - name: Find Android project
         run: |
           set -e
 
-          SETTINGS=$(find build-src -name settings.gradle -type f | head -n 1)
+          SETTINGS=$(find build-src -name "settings.gradle" -type f | head -n 1)
 
           if [ -z "$SETTINGS" ]; then
-            echo "ERROR: settings.gradle was not found."
-            echo "Extracted files:"
+            echo "ERROR: settings.gradle not found."
             find build-src -maxdepth 4 -type f | head -100
             exit 1
           fi
 
           PROJECT_DIR=$(dirname "$SETTINGS")
 
-          echo "Android project directory:"
+          echo "Android project found at:"
           echo "$PROJECT_DIR"
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
@@ -80,11 +76,13 @@ jobs:
         run: |
           set -e
 
-          echo "android.useAndroidX=true" >> "$PROJECT_DIR/gradle.properties"
-          echo "android.enableJetifier=true" >> "$PROJECT_DIR/gradle.properties"
+          touch "$PROJECT_DIR/gradle.properties"
 
-          echo "gradle.properties:"
-          cat "$PROJECT_DIR/gradle.properties"
+          grep -qxF "android.useAndroidX=true" "$PROJECT_DIR/gradle.properties" \
+            || echo "android.useAndroidX=true" >> "$PROJECT_DIR/gradle.properties"
+
+          grep -qxF "android.enableJetifier=true" "$PROJECT_DIR/gradle.properties" \
+            || echo "android.enableJetifier=true" >> "$PROJECT_DIR/gradle.properties"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -94,17 +92,12 @@ jobs:
       - name: Clean project
         run: |
           set -e
-
           cd "$PROJECT_DIR"
-
-          echo "Cleaning project..."
-
           gradle --no-daemon clean
 
       - name: Build APK
         run: |
           set -e
-
           cd "$PROJECT_DIR"
 
           echo "Starting APK build..."
@@ -131,5 +124,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: EnvironmentSmart-APK
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          path: "if-no-files-found: error"
           if-no-files-found: error
