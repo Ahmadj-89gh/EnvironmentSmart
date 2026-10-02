@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: تحميل المشروع
         uses: actions/checkout@v4
 
@@ -36,6 +37,8 @@ jobs:
 
           if [ -z "$ZIP_FILE" ]; then
             echo "لم يتم العثور على ملف المشروع"
+            echo "الملفات الموجودة:"
+            ls -la
             exit 1
           fi
 
@@ -52,6 +55,7 @@ jobs:
 
           if [ -z "$SETTINGS" ]; then
             echo "لم يتم العثور على settings.gradle"
+            find build-src -maxdepth 4 -type f | head -n 100
             exit 1
           fi
 
@@ -65,15 +69,36 @@ jobs:
           echo "android.useAndroidX=true" >> "$PROJECT_DIR/gradle.properties"
           echo "android.enableJetifier=true" >> "$PROJECT_DIR/gradle.properties"
 
+          echo "===== gradle.properties ====="
+          cat "$PROJECT_DIR/gradle.properties" || true
+
       - name: إعداد Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
+      - name: تنظيف المشروع
+        run: |
+          cd "$PROJECT_DIR"
+
+          gradle --no-daemon \
+            -Pandroid.useAndroidX=true \
+            -Pandroid.enableJetifier=true \
+            clean
+
       - name: بناء APK
         run: |
           cd "$PROJECT_DIR"
-          gradle --no-daemon assembleDebug
+
+          gradle --no-daemon \
+            -Pandroid.useAndroidX=true \
+            -Pandroid.enableJetifier=true \
+            assembleDebug
+
+      - name: التحقق من APK
+        run: |
+          echo "===== ملفات APK ====="
+          find "$PROJECT_DIR/app/build/outputs/apk" -type f -name "*.apk" -print
 
       - name: رفع APK
         uses: actions/upload-artifact@v4
