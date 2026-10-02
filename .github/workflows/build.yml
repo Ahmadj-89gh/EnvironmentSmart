@@ -1,4 +1,4 @@
-name: Build Environment Smart APK
+name: Build Environment Smart APK 1.2
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout project
         uses: actions/checkout@v4
 
       - name: Setup Java 17
@@ -30,45 +30,77 @@ jobs:
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Extract FINAL project
+      - name: Extract Environment Smart 1.2
         run: |
           set -e
-          test -f EnvironmentSmart_FINAL_READY.zip
+
           rm -rf build-src
           mkdir -p build-src
-          unzip -q EnvironmentSmart_FINAL_READY.zip -d build-src
+
+          if [ ! -f "EnvironmentSmart_1.2_CLEAN_READY.zip" ]; then
+            echo "ERROR: EnvironmentSmart_1.2_CLEAN_READY.zip not found"
+            exit 1
+          fi
+
+          unzip -q "EnvironmentSmart_1.2_CLEAN_READY.zip" -d build-src
+
+          echo "ZIP extracted successfully"
+          find build-src -maxdepth 3 -type f | head -50
 
       - name: Find Android project
         run: |
           set -e
+
           SETTINGS=$(find build-src -name "settings.gradle" -type f | head -n 1)
-          test -n "$SETTINGS"
+
+          if [ -z "$SETTINGS" ]; then
+            echo "ERROR: settings.gradle not found"
+            exit 1
+          fi
+
           PROJECT_DIR=$(dirname "$SETTINGS")
+
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          echo "Using project: $PROJECT_DIR"
+
+          echo "Android project found at:"
+          echo "$PROJECT_DIR"
 
       - name: Enable AndroidX
         run: |
-          printf "android.useAndroidX=true\nandroid.enableJetifier=true\n" > "$PROJECT_DIR/gradle.properties"
+          echo "android.useAndroidX=true" >> "$PROJECT_DIR/gradle.properties"
+          echo "android.enableJetifier=true" >> "$PROJECT_DIR/gradle.properties"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
+      - name: Clean project
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          gradle --no-daemon clean
+
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          gradle --no-daemon clean assembleDebug
+          gradle --no-daemon assembleDebug
 
       - name: Verify APK
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          test -f "$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
-          ls -lh "$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+          APK="app/build/outputs/apk/debug/app-debug.apk"
 
-      - name: Upload APK
+          if [ ! -f "$APK" ]; then
+            echo "ERROR: APK was not created"
+            exit 1
+          fi
+
+          echo "APK successfully created:"
+          ls -lh "$APK"
+
+      - name: Upload Environment Smart 1.2 APK
         uses: actions/upload-artifact@v4
         with:
-          name: EnvironmentSmart-APK
+          name: EnvironmentSmart-APK-1.2
           path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
