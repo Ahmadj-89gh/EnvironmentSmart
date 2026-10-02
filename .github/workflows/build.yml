@@ -32,7 +32,7 @@ jobs:
 
       - name: فك مشروع البيئة الذكية
         run: |
-          ZIP_FILE=$(find . -maxdepth 1 -type f -name 'EnvironmentSmart_v1_APK_Project.zip' | head -n 1)
+          ZIP_FILE=$(find . -maxdepth 1 -type f -name 'EnvironmentSmart_v1_APK_Project_FIXED.zip' | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
             echo "لم يتم العثور على ملف المشروع"
@@ -59,6 +59,11 @@ jobs:
 
           echo "مجلد المشروع: $PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: تفعيل AndroidX
+        run: |
+          echo "android.useAndroidX=true" >> "$PROJECT_DIR/gradle.properties"
+          echo "android.enableJetifier=true" >> "$PROJECT_DIR/gradle.properties"
 
       - name: إعداد Gradle
         uses: gradle/actions/setup-gradle@v4
