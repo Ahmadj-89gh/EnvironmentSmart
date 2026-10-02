@@ -35,13 +35,14 @@ jobs:
         run: |
           set -e
 
-          if [ -f "EnvironmentSmart_Map_Ready.zip" ]; then
+          if [ -f "EnvironmentSmart_Map_Ready_FIXED.zip" ]; then
+            ZIP_FILE="EnvironmentSmart_Map_Ready_FIXED.zip"
+          elif [ -f "EnvironmentSmart_Map_Ready.zip" ]; then
             ZIP_FILE="EnvironmentSmart_Map_Ready.zip"
           elif [ -f "EnvironmentSmart_v1_APK_Project.zip" ]; then
             ZIP_FILE="EnvironmentSmart_v1_APK_Project.zip"
           else
             echo "ERROR: Project ZIP file not found."
-            echo "Files in repository:"
             ls -la
             exit 1
           fi
@@ -61,7 +62,7 @@ jobs:
 
           if [ -z "$SETTINGS" ]; then
             echo "ERROR: settings.gradle not found."
-            find build-src -maxdepth 4 -type f | head -100
+            find build-src -maxdepth 5 -type f | head -100
             exit 1
           fi
 
@@ -124,5 +125,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: EnvironmentSmart-APK
-          path: "if-no-files-found: error"
+          path: "${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk"
           if-no-files-found: error
