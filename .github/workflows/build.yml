@@ -31,23 +31,34 @@ jobs:
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: فك مشروع البيئة الذكية
+      - name: اختيار وفك مشروع البيئة الذكية
         run: |
-          ZIP_FILE=$(find . -maxdepth 1 -type f -name 'EnvironmentSmart_v1_APK_Project_FIXED.zip' | head -n 1)
+          echo "الملفات الموجودة في المستودع:"
+          ls -la
+
+          ZIP_FILE=""
+
+          if [ -f "EnvironmentSmart_Map_Ready.zip" ]; then
+            ZIP_FILE="EnvironmentSmart_Map_Ready.zip"
+          elif [ -f "EnvironmentSmart_v1_APK_Project_FIXED.zip" ]; then
+            ZIP_FILE="EnvironmentSmart_v1_APK_Project_FIXED.zip"
+          elif [ -f "EnvironmentSmart_v1_APK_Project.zip" ]; then
+            ZIP_FILE="EnvironmentSmart_v1_APK_Project.zip"
+          fi
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "لم يتم العثور على ملف المشروع"
-            echo "الملفات الموجودة:"
-            ls -la
+            echo "لم يتم العثور على أي ملف مشروع ZIP"
             exit 1
           fi
 
-          echo "ملف المشروع: $ZIP_FILE"
+          echo "سيتم استخدام: $ZIP_FILE"
 
           rm -rf build-src
           mkdir -p build-src
 
           unzip -q "$ZIP_FILE" -d build-src
+
+          echo "تم فك المشروع بنجاح"
 
       - name: العثور على مشروع Android
         run: |
@@ -55,7 +66,7 @@ jobs:
 
           if [ -z "$SETTINGS" ]; then
             echo "لم يتم العثور على settings.gradle"
-            find build-src -maxdepth 4 -type f | head -n 100
+            find build-src -maxdepth 5 -type f | head -n 100
             exit 1
           fi
 
@@ -69,8 +80,7 @@ jobs:
           echo "android.useAndroidX=true" >> "$PROJECT_DIR/gradle.properties"
           echo "android.enableJetifier=true" >> "$PROJECT_DIR/gradle.properties"
 
-          echo "===== gradle.properties ====="
-          cat "$PROJECT_DIR/gradle.properties" || true
+          echo "تم تفعيل AndroidX"
 
       - name: إعداد Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -98,7 +108,10 @@ jobs:
       - name: التحقق من APK
         run: |
           echo "===== ملفات APK ====="
-          find "$PROJECT_DIR/app/build/outputs/apk" -type f -name "*.apk" -print
+          find "$PROJECT_DIR/app/build/outputs/apk" \
+            -type f \
+            -name "*.apk" \
+            -print
 
       - name: رفع APK
         uses: actions/upload-artifact@v4
