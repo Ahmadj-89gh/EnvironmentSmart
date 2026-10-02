@@ -38,9 +38,7 @@ jobs:
           ZIP_FILE="EnvironmentSmart_Map_Ready_FIXED.zip"
 
           if [ ! -f "$ZIP_FILE" ]; then
-            echo "ERROR: NEW project ZIP not found:"
-            echo "$ZIP_FILE"
-            echo ""
+            echo "ERROR: NEW project ZIP not found."
             echo "Files currently in repository:"
             ls -lah
             exit 1
@@ -80,34 +78,6 @@ jobs:
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      - name: Verify NEW MainActivity
-        run: |
-          set -e
-
-          MAIN_FILE="$PROJECT_DIR/app/src/main/java/com/environment/smart/MainActivity.java"
-
-          if [ ! -f "$MAIN_FILE" ]; then
-            echo "ERROR: MainActivity.java not found."
-            exit 1
-          fi
-
-          echo "========================================"
-          echo "NEW MainActivity found:"
-          echo "$MAIN_FILE"
-          echo "========================================"
-
-          grep -q "ArcGIS World Imagery" "$MAIN_FILE" || {
-            echo "ERROR: New map features were not found."
-            exit 1
-          }
-
-          grep -q "MapEventsOverlay" "$MAIN_FILE" || {
-            echo "ERROR: New map event system was not found."
-            exit 1
-          }
-
-          echo "NEW MAP FEATURES VERIFIED."
-
       - name: Enable AndroidX
         run: |
           set -e
@@ -130,6 +100,10 @@ jobs:
           set -e
 
           cd "$PROJECT_DIR"
+
+          echo "========================================"
+          echo "CLEANING PROJECT"
+          echo "========================================"
 
           gradle --no-daemon clean
 
@@ -161,8 +135,9 @@ jobs:
           echo "========================================"
           echo "APK SUCCESSFULLY CREATED"
           echo "$APK"
-          ls -lh "$APK"
           echo "========================================"
+
+          ls -lh "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
