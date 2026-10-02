@@ -11,8 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
-      - name: Checkout project
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Java 17
@@ -31,18 +30,16 @@ jobs:
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Extract Environment Smart 1.2
+      - name: Find final project ZIP
         run: |
           set -e
 
-          ZIP="EnvironmentSmart_1.2_CLEAN_READY_FIXED.zip"
+          ZIP="EnvironmentSmart_BUILD_FINAL_V2.zip"
 
           if [ ! -f "$ZIP" ]; then
-            echo "ERROR: ZIP file not found:"
-            echo "$ZIP"
-            echo ""
+            echo "ERROR: $ZIP was not found."
             echo "Available ZIP files:"
-            ls -lh *.zip || true
+            find . -maxdepth 2 -type f -name "*.zip" -print
             exit 1
           fi
 
@@ -51,17 +48,17 @@ jobs:
 
           unzip -q "$ZIP" -d build-src
 
-          echo "Project extracted successfully."
-
-      - name: Find Android project
+      - name: Locate Android project
         run: |
           set -e
 
-          SETTINGS=$(find build-src -name "settings.gradle" -type f | head -n 1)
+          SETTINGS=$(find build-src \
+            -name "settings.gradle" \
+            -o -name "settings.gradle.kts" \
+            | head -n 1)
 
           if [ -z "$SETTINGS" ]; then
-            echo "ERROR: settings.gradle not found"
-            find build-src -maxdepth 5 -type f | head -100
+            echo "ERROR: settings.gradle was not found."
             exit 1
           fi
 
@@ -74,8 +71,11 @@ jobs:
 
       - name: Enable AndroidX
         run: |
-          echo "android.useAndroidX=true" >> "$PROJECT_DIR/gradle.properties"
-          echo "android.enableJetifier=true" >> "$PROJECT_DIR/gradle.properties"
+          cat > "$PROJECT_DIR/gradle.properties" <<'EOF'
+          android.useAndroidX=true
+          android.enableJetifier=true
+          org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8
+          EOF
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -92,26 +92,27 @@ jobs:
         run: |
           gradle --no-daemon assembleDebug
 
-      - name: Find APK
+      - name: Verify APK
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set -e
 
-          APK=$(find "$PROJECT_DIR" -type f -name "*.apk" | head -n 1)
+          APK=$(find app/build/outputs/apk/debug \
+            -type f \
+            -name "*.apk" \
+            | head -n 1)
 
           if [ -z "$APK" ]; then
-            echo "ERROR: APK was not created"
+            echo "ERROR: APK was not created."
             exit 1
           fi
 
-          echo "APK found:"
-          ls -lh "$APK"
-
-          mkdir -p final-apk
-          cp "$APK" final-apk/EnvironmentSmart-1.2.apk
+          echo "APK CREATED SUCCESSFULLY:"
+          echo "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: EnvironmentSmart-APK-1.2
-          path: final-apk/EnvironmentSmart-1.2.apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
