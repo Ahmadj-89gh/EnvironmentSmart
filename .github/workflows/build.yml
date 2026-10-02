@@ -34,18 +34,19 @@ jobs:
         run: |
           set -e
 
-          rm -rf build-src
-          mkdir -p build-src
+          ZIP="EnvironmentSmart_1.2_CLEAN_READY_FIXED.zip"
 
-          if [ ! -f "EnvironmentSmart_1.2_CLEAN_READY.zip" ]; then
-            echo "ERROR: EnvironmentSmart_1.2_CLEAN_READY.zip not found"
+          if [ ! -f "$ZIP" ]; then
+            echo "ERROR: $ZIP not found"
             exit 1
           fi
 
-          unzip -q "EnvironmentSmart_1.2_CLEAN_READY.zip" -d build-src
+          rm -rf build-src
+          mkdir -p build-src
 
-          echo "ZIP extracted successfully"
-          find build-src -maxdepth 3 -type f | head -50
+          unzip -q "$ZIP" -d build-src
+
+          echo "Project ZIP extracted successfully."
 
       - name: Find Android project
         run: |
@@ -55,6 +56,8 @@ jobs:
 
           if [ -z "$SETTINGS" ]; then
             echo "ERROR: settings.gradle not found"
+            echo "Files found in build-src:"
+            find build-src -maxdepth 4 -type f | head -100
             exit 1
           fi
 
@@ -62,7 +65,7 @@ jobs:
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-          echo "Android project found at:"
+          echo "Android project:"
           echo "$PROJECT_DIR"
 
       - name: Enable AndroidX
@@ -95,7 +98,7 @@ jobs:
             exit 1
           fi
 
-          echo "APK successfully created:"
+          echo "APK created successfully:"
           ls -lh "$APK"
 
       - name: Upload Environment Smart 1.2 APK
