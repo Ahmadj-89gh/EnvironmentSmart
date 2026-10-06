@@ -1,0 +1,41 @@
+name: Build EnvironmentSmart APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Extract project ZIP
+        run: |
+          unzip -q EnvironmentSmart_CLEAN_FINAL_V1.zip
+          echo "ZIP extracted"
+
+      - name: Build APK
+        working-directory: EnvironmentSmart
+        run: gradle assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: EnvironmentSmart-APK
+          path: EnvironmentSmart/app/build/outputs/apk/debug/app-debug.apk
